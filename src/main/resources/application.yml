@@ -1,0 +1,14 @@
+spring:
+  servlet:
+    multipart:
+      #启用文件上传
+      enabled: true
+      #文件大于该阈值时，将写入磁盘，支持KB/MB单位
+      file-size-threshold: 2KB
+      #最大文件大小（单个）
+      max-file-size: 200MB
+      #最大请求大小（总体）
+      max-request-size: 215MB
+#文件上传后保存路径
+file:
+  upload-dir: F:\
