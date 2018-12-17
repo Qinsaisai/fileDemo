@@ -3,6 +3,7 @@ package com.example.file_upload_download.controller;
 import com.example.file_upload_download.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -13,27 +14,30 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import java.net.URLEncoder;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api")
 @Slf4j
 public class FileController {
 
-    @Autowired
-    private FileUtil fileUtil;
+    @Value("${file.upload-dir}")
+    private String fileUploadDir;
 
     /**
      * 单文件上传
-     * @param file
+     * @param multipartFile
      * @return
      * @throws Exception
      */
     @PostMapping("/uploadFile")
-    public ResponseEntity uploadFile(@RequestPart("file") MultipartFile file) throws Exception {
-        log.error(file.getOriginalFilename());
-        log.error(String.valueOf(file.getSize()));
-        fileUtil.uploadFile(file);
-        return ResponseEntity.ok("ok");
+    public ResponseEntity uploadFile(@RequestPart("file") MultipartFile multipartFile) throws Exception {
+        String fileName = multipartFile.getOriginalFilename();
+        Path path=  Paths.get(fileUploadDir).resolve(fileName);
+        FileUtil.save(multipartFile.getInputStream(), path);
+        return ResponseEntity.ok().build();
     }
 
     /**
@@ -43,10 +47,14 @@ public class FileController {
      * @throws Exception
      */
     @PostMapping("/uploadMultipleFiles")
-    public String uploadMultipleFiles(@RequestParam("files") MultipartFile[] files) throws Exception {
-        return fileUtil.uploadMultipleFiles(files);
+    public ResponseEntity uploadMultipleFiles(@RequestPart("files") MultipartFile[] files) throws Exception {
+        for (int i=0;i<files.length;i++){
+            String fileName=files[i].getOriginalFilename();
+            Path path=Paths.get(fileUploadDir).resolve(fileName);
+            FileUtil.save(files[i].getInputStream(),path);
+        }
+        return ResponseEntity.ok().build();
     }
-
     /**
      * 文件下载（通过封装ResponseEntity，将文件流写入body中。注意：文件的格式需要根据具体文件的类型来设置，一般默认为application/octet-stream。文件头中设置缓存以及文件的名字）
      * @param fileName
@@ -56,7 +64,7 @@ public class FileController {
      */
     @GetMapping("/downloadFile/{fileName}")
     public ResponseEntity<Resource> downloadFile(@PathVariable String fileName, HttpServletRequest request) throws Exception {
-        UrlResource resource=fileUtil.loadFileAsResource(fileName);
+        UrlResource resource= FileUtil.loadFileAsResource(fileName,fileUploadDir);
         String contentType=null;
         contentType=request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
         if(contentType==null){
